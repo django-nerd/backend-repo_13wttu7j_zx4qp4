@@ -1,48 +1,39 @@
 """
-Database Schemas
+Database Schemas for Microlearning App
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model represents a collection in MongoDB. The collection name is the lowercase of the class name.
 """
-
+from __future__ import annotations
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional, Literal
 
-# Example schemas (replace with your own):
+HOTSLevel = Literal["remember", "understand", "apply", "analyze", "evaluate", "create"]
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class QuizQuestion(BaseModel):
+    id: Optional[str] = Field(None, description="Client-friendly id for the question")
+    question: str
+    options: List[str]
+    correct_index: int = Field(..., ge=0, description="Index of the correct option")
+    hots_level: HOTSLevel = Field("understand", description="Cognitive level based on Bloom's taxonomy")
+    explanation: Optional[str] = Field(None, description="Explanation for the correct answer")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Step(BaseModel):
+    type: Literal["theory", "case", "quiz", "selftest"]
+    title: str
+    content: Optional[str] = Field(None, description="Markdown/HTML content for theory/case steps")
+    case_prompt: Optional[str] = Field(None, description="Prompt/Scenario for case study")
+    quiz_questions: Optional[List[QuizQuestion]] = Field(None, description="Questions for quiz step")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Topic(BaseModel):
+    title: str
+    description: str
+    tags: List[str] = []
+    estimated_minutes: int = 10
+    steps: List[Step] = Field(default_factory=list)
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class SelftestAttempt(BaseModel):
+    topic_id: str
+    score: float
+    total_questions: int
+    answers: List[dict] = Field(default_factory=list, description="List of user answers and correctness per question")
+    user_id: Optional[str] = None
